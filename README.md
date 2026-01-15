@@ -24,7 +24,7 @@ BlendPet adds a pixel-art cat — and maybe more pets later — that wanders aro
 
 ![Demo 2](assets/demos/Demo%202.gif)
 
-## Contributing
+## Contributing 
 
 **Want to add to the project?**
 
