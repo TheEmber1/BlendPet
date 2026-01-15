@@ -14,7 +14,7 @@ def load_texture():
     # Calculate absolute path to sprite
     # Assumes this renderer.py is in the same folder as the sprite
     dir_path = os.path.dirname(os.path.abspath(__file__))
-    sprite_path = os.path.join(dir_path, "Cat Sprite Sheet.png")
+    sprite_path = os.path.join(dir_path, "textures", "Cat Sprite Sheet.png")
     
     if not os.path.exists(sprite_path):
         print(f"BlendPet Error: Sprite not found at {sprite_path}")

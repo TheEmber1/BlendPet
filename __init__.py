@@ -84,7 +84,7 @@ class VIEW3D_OT_PetLoop(bpy.types.Operator):
         wm = context.window_manager
         wm["blendpet_running"] = True
         base_path = os.path.dirname(__file__)
-        sprite_path = os.path.join(base_path, "Cat Sprite Sheet.png")
+        sprite_path = os.path.join(base_path, "textures", "Cat Sprite Sheet.png")
         pet_engine.initialize(sprite_path)
         renderer.register_draw_handler()
         self._timer = wm.event_timer_add(0.05, window=context.window)
@@ -129,7 +129,7 @@ def register():
     # Load Custom Icon
     pcoll = bpy.utils.previews.new()
     dir_path = os.path.dirname(__file__)
-    icon_path = os.path.join(dir_path, "icon.png")
+    icon_path = os.path.join(dir_path, "textures", "icon.png")
     
     print(f"BlendPet: Loading icon from {icon_path}")
     if not os.path.exists(icon_path):

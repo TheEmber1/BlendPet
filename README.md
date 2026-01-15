@@ -1,5 +1,7 @@
 # BlendPet
 
+![Demo 1](assets/demos/Demo%201.gif)
+
 A completely useless (but kinda adorable) little pet that lives in your Blender viewport.  
 BlendPet adds a pixel-art cat — and maybe more pets later — that wanders around, sleeps, stretches, and generally distracts you while you’re trying to work.
 
@@ -19,6 +21,8 @@ BlendPet adds a pixel-art cat — and maybe more pets later — that wanders aro
 ## Usage
 - **Toggle** – Turn the pet on/off from the Viewport Header (T-Panel) or the N-Panel.
 - **Settings** – Adjust size and other options in the Add-on Preferences.
+
+![Demo 2](assets/demos/Demo%202.gif)
 
 ## Contributing
 
