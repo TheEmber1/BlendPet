@@ -26,9 +26,11 @@ BlendPet adds a pixel-art cat — and maybe more pets later — that wanders aro
 4. Click **Install…** and select the zip file.
 5. Enable **BlendPet** using the checkbox.
 
-## Usage
-- **Toggle** – Turn the pet on/off from the Viewport Header.
-- **Settings** – Adjust size of the pet in the Add-on Preferences.
+## How to use
+
+1. **Summon the Pet**: Once enabled, look for the **Cat icon** in the top header of your 3D Viewport. Click it to bring the pet into your workspace.
+2. **Where to find it**: The pet wanders along the bottom edge of your **Timeline**, **Dope Sheet**, or **Graph Editor**. If you don't see it, make sure one of these animation editors is open!
+3. **Change its size**: If the cat is taking up too much (or too little) space, go to `Edit > Preferences > Add-ons > BlendPet` and adjust the **Pet Scale** slider.
 
 ## Troubleshooting
 
