@@ -7,8 +7,8 @@ from . import renderer
 bl_info = {
     "name": "BlendPet",
     "author": "nova3D",
-    "version": (1, 1),
-    "blender": (5, 0, 0),
+    "version": (1, 1, 0),
+    "blender": (4, 2, 0),
     "location": "View3D > Sidebar > BlendPet",
     "description": "A useless but cute pet that lives in your Blender viewport.",
     "category": "3D View",
@@ -61,41 +61,61 @@ class VIEW3D_OT_PetLoop(bpy.types.Operator):
 
     def modal(self, context, event):
         if not context.window_manager.get("blendpet_running"):
-            # Stop condition
             return self.cancel(context)
 
         if event.type == 'TIMER':
-            width = 1000
-            for window in context.window_manager.windows:
-                for area in window.screen.areas:
-                    if area.type in ['DOPESHEET_EDITOR', 'GRAPH_EDITOR', 'TIMELINE']:
-                         width = area.width
-                         break
-            pet_engine.update(width)
-            
-            for window in context.window_manager.windows:
-                for area in window.screen.areas:
-                    if area.type in ['DOPESHEET_EDITOR', 'GRAPH_EDITOR', 'TIMELINE', 'SEQUENCE_EDITOR', 'CLIP_EDITOR']:
-                        area.tag_redraw()
+            try:
+                # Find current animation editor width for collision
+                width = 1000
+                for window in context.window_manager.windows:
+                    for area in window.screen.areas:
+                        if area.type in ['DOPESHEET_EDITOR', 'GRAPH_EDITOR', 'TIMELINE']:
+                             width = area.width
+                             break
+                
+                pet_engine.update(float(width))
+                
+                # Tag redraw for all animation editors
+                for window in context.window_manager.windows:
+                    for area in window.screen.areas:
+                        if area.type in ['DOPESHEET_EDITOR', 'GRAPH_EDITOR', 'TIMELINE', 'SEQUENCE_EDITOR', 'CLIP_EDITOR']:
+                            area.tag_redraw()
+            except Exception as e:
+                print(f"BlendPet Error in Modal: {e}")
+                return self.cancel(context)
 
         return {'PASS_THROUGH'}
 
     def execute(self, context):
         wm = context.window_manager
+        
+        if wm.get("blendpet_running"):
+             return {'CANCELLED'}
+
         wm["blendpet_running"] = True
-        base_path = os.path.dirname(__file__)
-        sprite_path = os.path.join(base_path, "textures", "Cat Sprite Sheet.png")
-        pet_engine.initialize(sprite_path)
-        renderer.register_draw_handler()
-        self._timer = wm.event_timer_add(0.05, window=context.window)
-        wm.modal_handler_add(self)
-        return {'RUNNING_MODAL'}
+        
+        try:
+            base_path = os.path.dirname(__file__)
+            sprite_path = os.path.join(base_path, "textures", "Cat Sprite Sheet.png")
+            
+            pet_engine.initialize(sprite_path)
+            renderer.register_draw_handler()
+            
+            self._timer = wm.event_timer_add(0.05, window=context.window)
+            wm.modal_handler_add(self)
+            return {'RUNNING_MODAL'}
+            
+        except Exception as e:
+            print(f"BlendPet Error starting: {e}")
+            wm["blendpet_running"] = False
+            return {'CANCELLED'}
 
     def cancel(self, context):
         wm = context.window_manager
         if self._timer:
             wm.event_timer_remove(self._timer)
             self._timer = None
+        
         renderer.unregister_draw_handler()
         wm["blendpet_running"] = False
         return {'FINISHED'}

@@ -1,85 +1,83 @@
-
 import bpy
 import gpu
 from gpu_extras.batch import batch_for_shader
 import os
 import blf
+from typing import Optional, List, Tuple, Any
 
-_handles = []
-texture = None
-cached_shader = None
+# -- Constants --
+SPRITE_SIZE = 32
+SPRITE_COLUMNS = 8
+SPRITE_ROWS = 10
+UPSCALE_FACTOR = 8
+IMAGE_NAME = "BlendPetSprite"
+UPSCALED_IMAGE_NAME = "BlendPetSprite_Upscaled"
 
-def load_texture():
+_handles: List[Tuple[Any, Any]] = []
+texture: Optional[gpu.types.GPUTexture] = None
+cached_shader: Optional[gpu.types.GPUShader] = None
+
+def log(msg: str, is_error: bool = False):
+    prefix = "BlendPet Error" if is_error else "BlendPet"
+    print(f"{prefix}: {msg}")
+
+def load_texture() -> Optional[gpu.types.GPUTexture]:
     global texture
-    # Calculate absolute path to sprite
-    # Assumes this renderer.py is in the same folder as the sprite
+    
     dir_path = os.path.dirname(os.path.abspath(__file__))
     sprite_path = os.path.join(dir_path, "textures", "Cat Sprite Sheet.png")
     
     if not os.path.exists(sprite_path):
-        print(f"BlendPet Error: Sprite not found at {sprite_path}")
+        log(f"Sprite not found at {sprite_path}", is_error=True)
         return None
 
-    # Load into Blender Data if not present
-    img_name = "BlendPetSprite"
-    img = bpy.data.images.get(img_name)
+    img = bpy.data.images.get(IMAGE_NAME)
     if not img:
         try:
             img = bpy.data.images.load(sprite_path)
-            img.name = img_name
+            img.name = IMAGE_NAME
         except Exception as e:
-            print(f"BlendPet Error: Could not load image data: {e}")
+            log(f"Could not load image data: {e}", is_error=True)
             return None
     
-    # Load into GPU
     if img:
         try:
-            # -- SOFTWARE UPSCALING WORKAROUND --
-            # Since GPU filtering is failing/ignoring 'NEAREST', we manually
-            # upscale the pixel data so even 'Linear' looks sharp.
+            # Try software upscaling for better 'Linear' filtering look if 'Nearest' fails
+            upscale_success = False
             try:
                 import numpy as np
-                
-                # Get raw dimensions
                 w, h = img.size
-                
-                # Access pixels (float array)
-                # Optimization: resizing 256x320 is cheap with numpy
                 px = np.array(img.pixels)
                 px = px.reshape((h, w, 4))
                 
-                # Upscale factor (8x makes 1 pixel = 8x8 block)
-                filescale = 8
+                upscaled = px.repeat(UPSCALE_FACTOR, axis=0).repeat(UPSCALE_FACTOR, axis=1)
                 
-                # Kronecker product / Repeat
-                # Note: Blender images are bottom-up? flatten happens row by row.
-                # reshape order is usually row-major.
-                upscaled = px.repeat(filescale, axis=0).repeat(filescale, axis=1)
+                if UPSCALED_IMAGE_NAME in bpy.data.images:
+                    bpy.data.images.remove(bpy.data.images[UPSCALED_IMAGE_NAME])
                 
-                # Create new container
-                up_name = "BlendPetSprite_Upscaled"
-                if up_name in bpy.data.images:
-                    bpy.data.images.remove(bpy.data.images[up_name])
-                
-                up_img = bpy.data.images.new(up_name, w * filescale, h * filescale, alpha=True)
+                up_img = bpy.data.images.new(UPSCALED_IMAGE_NAME, w * UPSCALE_FACTOR, h * UPSCALE_FACTOR, alpha=True)
                 up_img.pixels = upscaled.flatten()
                 up_img.alpha_mode = 'STRAIGHT'
                 
-                # Use this for texture
                 texture = gpu.texture.from_image(up_img)
+                upscale_success = True
                 
+            except ImportError:
+                log("Numpy not found. Skipping software upscale.")
             except Exception as e:
-                print(f"BlendPet: Numpy Upscale failed ({e}), using raw image.")
+                log(f"Numpy upscale failed: {e}")
+
+            if not upscale_success:
                 texture = gpu.texture.from_image(img)
 
-            # FORCE PIXELATED LOOK (Still try, just in case)
+            # Attempt to set NEAREST filtering
             try:
                 texture.filter_type = 'NEAREST' 
             except:
                 pass
             return texture
         except Exception as e:
-            print(f"BlendPet Error: GPU Texture creation failed: {e}")
+            log(f"GPU Texture creation failed: {e}", is_error=True)
             return None
     return None
 
@@ -89,61 +87,53 @@ def draw_callback():
     if not texture:
         texture = load_texture()
         
-    from . import pet_engine
-    state = pet_engine.get_render_data()
+    try:
+        from . import pet_engine
+        state = pet_engine.get_render_data()
+    except ImportError:
+        # If running as relative package fails (e.g. standalone test)
+        import pet_engine
+        state = pet_engine.get_render_data()
+        
     if not state:
         return
         
-    x, y, row, frame_index, facing_right = state # unpack
+    x, y, row, frame_index, facing_right = state 
 
     context = bpy.context
     region_width = context.region.width
     
     # Visual Configuration
     try:
-        # Access Addon Preferences
-        # __package__ is likely 'blend_pet'
         prefs = context.preferences.addons[__package__].preferences
         scale = prefs.pet_scale
     except:
         scale = 4.0 
-    sprite_w = 32
-    sprite_h = 32
     
     # Snap these to integers to avoid sub-pixel blurring
-    w = int(sprite_w * scale)
-    h = int(sprite_h * scale)
+    w = int(SPRITE_SIZE * scale)
+    h = int(SPRITE_SIZE * scale)
     
     # Position
     draw_x = int(x % region_width)
-    draw_y = 0 # Walk on the absolute bottom edge of the region
+    draw_y = 0 
 
-    # -- Sprite Rendering --
     if texture:
         # UV Calculations
-        tex_w, tex_h = texture.width, texture.height
+        uv_y_top = 1.0 - (row * SPRITE_SIZE) / (SPRITE_SIZE * SPRITE_ROWS)
+        uv_y_bot = 1.0 - ((row + 1) * SPRITE_SIZE) / (SPRITE_SIZE * SPRITE_ROWS)
         
-        # Invert Row logic (assuming top-down row indices from user, but UV is bottom-up)
-        # Row 0 (Top) -> UV Y near 1.0
-        row_uv = row 
-        
-        # NOTE: Since we upscaled the texture uniformly, UV ratios remain identical.
-        # 32 / 256 is same as (32*8) / (256*8).
-        
-        uv_y_top = 1.0 - (row_uv * sprite_h) / 320.0 # hardcoded base height to avoid confusion
-        uv_y_bot = 1.0 - ((row_uv + 1) * sprite_h) / 320.0
-        
-        uv_x_left = (frame_index * sprite_w) / 256.0 # hardcoded base width
-        uv_x_right = ((frame_index + 1) * sprite_w) / 256.0
+        uv_x_left = (frame_index * SPRITE_SIZE) / (SPRITE_SIZE * SPRITE_COLUMNS)
+        uv_x_right = ((frame_index + 1) * SPRITE_SIZE) / (SPRITE_SIZE * SPRITE_COLUMNS)
         
         if not facing_right:
             uv_x_left, uv_x_right = uv_x_right, uv_x_left
             
         vertices = (
-            (draw_x, draw_y),       # Bottom-Left
-            (draw_x + w, draw_y),   # Bottom-Right
-            (draw_x + w, draw_y + h), # Top-Right
-            (draw_x, draw_y + h),   # Top-Left
+            (draw_x, draw_y),
+            (draw_x + w, draw_y),
+            (draw_x + w, draw_y + h),
+            (draw_x, draw_y + h),
         )
         
         indices = ((0, 1, 2), (2, 3, 0))
@@ -155,7 +145,6 @@ def draw_callback():
             (uv_x_left, uv_y_top),
         )
         
-        # -- BUILTIN SHADER (Reliable) --
         shader_img = gpu.shader.from_builtin('IMAGE')
         batch_img = batch_for_shader(shader_img, 'TRIS', {"pos": vertices, "texCoord": texture_coords}, indices=indices)
         
