@@ -28,6 +28,8 @@ BlendPet adds a pixel-art cat — and maybe more pets later — that wanders aro
 
 ## How to use
 
+![Demo 2](assets/demos/Demo%202.gif)
+
 1. **Summon the Pet**: Once enabled, look for the **Cat icon** in the top header of your 3D Viewport. Click it to bring the pet into your workspace.
 2. **Where to find it**: The pet wanders along the bottom edge of your **Timeline**, **Dope Sheet**, or **Graph Editor**. If you don't see it, make sure one of these animation editors is open!
 3. **Change its size**: If the cat is taking up too much (or too little) space, go to `Edit > Preferences > Add-ons > BlendPet` and adjust the **Pet Scale** slider.
@@ -37,9 +39,6 @@ BlendPet adds a pixel-art cat — and maybe more pets later — that wanders aro
 - **"Numpy not found" in Console**: The addon uses Numpy to upscale the pixel art for a sharper look. If it's missing, the cat will still appear but might look a bit blurry (linear filtering).
 - **Pet not appearing**: Ensure you have a Timeline, Dope Sheet, or Graph Editor open. The pet only lives in these animation-focused windows.
 - **Icon is a monkey**: If `icon.png` is missing from the `/textures` folder, Blender will fallback to the default Suzanne icon.
-
-
-![Demo 2](assets/demos/Demo%202.gif)
 
 ## Contributing 
 
